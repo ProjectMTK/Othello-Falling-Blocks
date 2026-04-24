@@ -17,16 +17,18 @@
     }
     .wrap {
       display: grid;
-      grid-template-columns: auto 260px;
-      gap: 24px;
-      align-items: start;
-      padding: 24px;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      align-items: center;
+      justify-items: center;
+      padding: 12px;
     }
     canvas {
       background: #0f5132;
       border: 5px solid #d1d5db;
       border-radius: 14px;
       box-shadow: 0 24px 60px rgba(0,0,0,.45);
+      display: block;
     }
     .panel {
       background: rgba(17, 24, 39, .78);
@@ -81,6 +83,17 @@
 <body>
   <div class="wrap">
     <canvas id="game" width="360" height="600"></canvas>
+    <div style="width:360px;max-width:100%;">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
+        <button onclick="control('left')">←</button>
+        <button onclick="control('down')">↓</button>
+        <button onclick="control('right')">→</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+        <button onclick="control('rotL')">⟲</button>
+        <button onclick="control('rotR')">⟳</button>
+      </div>
+    </div>
     <aside class="panel">
       <h1>オセロ落ち物ゲーム</h1>
       <div class="label">SCORE</div>
@@ -98,17 +111,7 @@
       <p class="small">
         黒がプレイヤー色です。ブロック固定後、黒で白を縦・横・斜めに挟むと、白が裏返ってから消えます。消えた空間には上の石が落下します。
       </p>
-          <div class="label">タッチ操作</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
-        <button onclick="control('left')">←</button>
-        <button onclick="control('down')">↓</button>
-        <button onclick="control('right')">→</button>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-        <button onclick="control('rotL')">⟲</button>
-        <button onclick="control('rotR')">⟳</button>
-      </div>
-    </aside>
+          </aside>
   </div>
 
 <script>
@@ -120,7 +123,7 @@
   const restartBtn = document.getElementById('restart');
 
   const COLS = 10;
-  const ROWS = 20;
+  const ROWS = 19;
   const CELL = 30;
   const EMPTY = 0;
   const BLACK = 1;
