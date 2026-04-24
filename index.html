@@ -2,65 +2,44 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>オセロ落ち物ゲーム</title>
   <style>
     * { box-sizing: border-box; }
-    body {
-      touch-action: manipulation;
+    html, body {
       margin: 0;
       min-height: 100vh;
-      display: grid;
-      place-items: center;
+      overflow-x: hidden;
+      touch-action: manipulation;
       background: radial-gradient(circle at top, #264653, #111827 60%, #030712);
       color: #f9fafb;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
+    body { display: grid; place-items: start center; }
     .wrap {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 12px;
-      align-items: center;
+      gap: 10px;
       justify-items: center;
-      padding: 12px;
+      width: 100%;
+      padding: 10px;
     }
     canvas {
+      width: min(360px, 96vw);
+      height: min(360px, 96vw);
       background: #0f5132;
       border: 5px solid #d1d5db;
       border-radius: 14px;
-      box-shadow: 0 24px 60px rgba(0,0,0,.45);
+      box-shadow: 0 18px 40px rgba(0,0,0,.45);
       display: block;
       touch-action: none;
     }
-    .panel {
-      background: rgba(17, 24, 39, .78);
-      border: 1px solid rgba(255,255,255,.16);
-      border-radius: 18px;
-      padding: 18px;
-      box-shadow: 0 20px 50px rgba(0,0,0,.35);
-    }
-    h1 { font-size: 22px; margin: 0 0 10px; }
-    .score { font-size: 28px; font-weight: 800; margin: 10px 0 18px; }
-    .label { color: #cbd5e1; font-size: 13px; margin-top: 14px; }
-    .keys {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 8px;
-    }
-    kbd {
-      display: inline-block;
-      background: #f8fafc;
-      color: #111827;
-      border-radius: 7px;
-      padding: 4px 8px;
-      font-weight: 700;
-      font-size: 12px;
-      text-align: center;
-    }
+    .touch-controls { width: min(360px, 96vw); }
+    .touch-grid-3, .touch-grid-2 { display: grid; gap: 8px; }
+    .touch-grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .touch-grid-2 { grid-template-columns: repeat(2, 1fr); margin-top: 8px; }
     button {
       width: 100%;
-      margin-top: 18px;
       border: 0;
       border-radius: 12px;
       padding: 12px 14px;
@@ -73,34 +52,58 @@
       -webkit-user-select: none;
       -webkit-tap-highlight-color: transparent;
     }
-    .touch-controls button {
-      margin-top: 0;
-      min-height: 54px;
-      font-size: 24px;
+    .touch-controls button { min-height: 52px; font-size: 24px; }
+    .panel {
+      width: min(360px, 96vw);
+      background: rgba(17, 24, 39, .78);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 0 12px 30px rgba(0,0,0,.28);
     }
-    .small { color: #cbd5e1; font-size: 13px; line-height: 1.65; }
-    .gameover {
-      color: #fecaca;
-      font-weight: 800;
-      min-height: 24px;
-      margin-top: 12px;
+    h1 { font-size: 19px; margin: 0 0 8px; }
+    .score { font-size: 26px; font-weight: 900; margin: 4px 0 8px; }
+    .label { color: #cbd5e1; font-size: 12px; margin-top: 8px; }
+    .small { color: #cbd5e1; font-size: 12px; line-height: 1.55; margin: 8px 0 0; }
+    .gameover { color: #fecaca; font-weight: 800; min-height: 20px; margin-top: 8px; }
+    .result-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(0,0,0,.72);
+      z-index: 10;
+      padding: 18px;
     }
-    @media (max-width: 760px) {
-      .wrap { grid-template-columns: 1fr; }
-      canvas { width: 100%; height: auto; }
+    .result-card {
+      width: min(430px, 94vw);
+      background: linear-gradient(160deg, #0f5132, #111827 70%);
+      border: 3px solid #facc15;
+      border-radius: 28px;
+      padding: 26px;
+      text-align: center;
+      box-shadow: 0 28px 80px rgba(0,0,0,.55);
     }
+    .result-title { font-size: 26px; font-weight: 900; margin-bottom: 8px; }
+    .result-score { font-size: 54px; font-weight: 1000; color: #facc15; line-height: 1; margin: 14px 0; }
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
+    .result-item { background: rgba(255,255,255,.12); border-radius: 16px; padding: 12px 8px; }
+    .result-item b { display:block; font-size: 22px; }
+    .result-item span { color:#cbd5e1; font-size:12px; }
+    .result-note { color:#e5e7eb; font-size: 13px; line-height: 1.6; }
+    .result-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <canvas id="game" width="360" height="600"></canvas>
-    <div class="touch-controls" style="width:360px;max-width:100%;">
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
+    <canvas id="game" width="360" height="360"></canvas>
+    <div class="touch-controls">
+      <div class="touch-grid-3">
         <button data-control="left">←</button>
         <button data-control="down">↓</button>
         <button data-control="right">→</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+      <div class="touch-grid-2">
         <button data-control="rotL">⟲</button>
         <button data-control="rotR">⟳</button>
       </div>
@@ -109,20 +112,28 @@
       <h1>オセロ落ち物ゲーム</h1>
       <div class="label">SCORE</div>
       <div class="score" id="score">0</div>
-      <div class="label">操作</div>
-      <div class="keys">
-        <kbd>← →</kbd><span>移動</span>
-        <kbd>↓</kbd><span>高速落下</span>
-        <kbd>↑</kbd><span>即落下</span>
-        <kbd>L</kbd><span>左回転</span>
-        <kbd>R</kbd><span>右回転</span>
-      </div>
       <button id="restart">リスタート</button>
       <div class="gameover" id="message"></div>
-      <p class="small">
-        黒がプレイヤー色です。ブロック固定後、黒で白を縦・横・斜めに挟むと、白が裏返ってから消えます。消えた空間には上の石が落下します。
-      </p>
-          </aside>
+      <p class="small">目的は盤面を黒で埋めることです。白を挟んで消すほど加点、連鎖で倍率アップ。時間は短いほど高得点です。</p>
+    </aside>
+  </div>
+
+  <div class="result-modal" id="resultModal">
+    <div class="result-card">
+      <div class="result-title" id="resultTitle">RESULT</div>
+      <div class="result-score" id="resultScore">0</div>
+      <div class="result-grid">
+        <div class="result-item"><b id="resultBlack">0</b><span>黒マス</span></div>
+        <div class="result-item"><b id="resultWhite">0</b><span>消した白</span></div>
+        <div class="result-item"><b id="resultChain">0</b><span>最大連鎖</span></div>
+        <div class="result-item"><b id="resultTime">0秒</b><span>タイム</span></div>
+      </div>
+      <div class="result-note" id="resultNote">スクショしてSNSに投稿できます。<br>#OthelloFallingBlocks</div>
+      <div class="result-actions">
+        <button id="closeResult">閉じる</button>
+        <button id="restartResult">もう一度</button>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -132,9 +143,10 @@
   const scoreEl = document.getElementById('score');
   const messageEl = document.getElementById('message');
   const restartBtn = document.getElementById('restart');
+  const resultModal = document.getElementById('resultModal');
 
   const COLS = 10;
-  const ROWS = 19;
+  const ROWS = 12;
   const CELL = 30;
   const EMPTY = 0;
   const BLACK = 1;
@@ -142,33 +154,34 @@
   const PLAYER = BLACK;
   const OPPONENT = WHITE;
 
-  const DIRS = [
-    [-1,-1], [0,-1], [1,-1],
-    [-1, 0],         [1, 0],
-    [-1, 1], [0, 1], [1, 1]
-  ];
-
+  const DIRS = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
   const SHAPES = [
-    [[0,0],[1,0],[0,1],[1,1]],      // O
-    [[-1,0],[0,0],[1,0],[2,0]],     // I
-    [[-1,0],[0,0],[1,0],[0,1]],     // T
-    [[0,0],[1,0],[0,1],[-1,1]],     // S
-    [[-1,0],[0,0],[0,1],[1,1]],     // Z
-    [[-1,0],[0,0],[1,0],[-1,1]],    // L
-    [[-1,0],[0,0],[1,0],[1,1]]      // J
+    [[0,0],[1,0],[0,1],[1,1]],
+    [[-1,0],[0,0],[1,0],[2,0]],
+    [[-1,0],[0,0],[1,0],[0,1]],
+    [[0,0],[1,0],[0,1],[-1,1]],
+    [[-1,0],[0,0],[0,1],[1,1]],
+    [[-1,0],[0,0],[1,0],[-1,1]],
+    [[-1,0],[0,0],[1,0],[1,1]]
   ];
 
   let board, current, score, gameOver, dropTimer, dropInterval, lastTime;
+  let startTime, elapsedSeconds, erasedWhiteTotal, maxChain;
 
   function reset() {
     board = Array.from({ length: ROWS }, () => Array(COLS).fill(EMPTY));
     score = 0;
+    elapsedSeconds = 0;
+    erasedWhiteTotal = 0;
+    maxChain = 0;
+    startTime = Date.now();
     gameOver = false;
     dropTimer = 0;
     dropInterval = 650;
     lastTime = 0;
     scoreEl.textContent = score;
     messageEl.textContent = '';
+    resultModal.style.display = 'none';
     spawnPiece();
   }
 
@@ -179,21 +192,10 @@
   function spawnPiece() {
     const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
     const cells = shape.map(([x, y]) => ({ x, y, c: randomColor() }));
-
-    // 最低1個は黒、1個は白を含める
     if (!cells.some(v => v.c === BLACK)) cells[0].c = BLACK;
     if (!cells.some(v => v.c === WHITE)) cells[cells.length - 1].c = WHITE;
-
-    current = {
-      x: Math.floor(COLS / 2),
-      y: 1,
-      cells
-    };
-
-    if (collides(current)) {
-      gameOver = true;
-      messageEl.textContent = 'GAME OVER';
-    }
+    current = { x: Math.floor(COLS / 2), y: 1, cells };
+    if (collides(current)) finishGame(false);
   }
 
   function eachAbs(piece, fn) {
@@ -222,14 +224,11 @@
 
   function rotate(dir) {
     if (gameOver) return;
-    const rotated = current.cells.map(cell => {
-      return dir > 0
-        ? { x: -cell.y, y: cell.x, c: cell.c }
-        : { x: cell.y, y: -cell.x, c: cell.c };
-    });
-
-    const kicks = [0, -1, 1, -2, 2];
-    for (const k of kicks) {
+    const rotated = current.cells.map(cell => dir > 0
+      ? { x: -cell.y, y: cell.x, c: cell.c }
+      : { x: cell.y, y: -cell.x, c: cell.c }
+    );
+    for (const k of [0, -1, 1, -2, 2]) {
       const next = { ...current, x: current.x + k, cells: rotated };
       if (!collides(next)) {
         current = next;
@@ -249,42 +248,36 @@
     });
     resolveOthello();
     applyGravity();
-    spawnPiece();
+    if (!gameOver) spawnPiece();
   }
 
   function resolveOthello() {
     let chain = 0;
-
     while (true) {
       const toRemove = new Set();
-
       for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
           if (board[y][x] !== PLAYER) continue;
-
           for (const [dx, dy] of DIRS) {
             const captured = [];
             let nx = x + dx;
             let ny = y + dy;
-
             while (inside(nx, ny) && board[ny][nx] === OPPONENT) {
               captured.push([nx, ny]);
               nx += dx;
               ny += dy;
             }
-
             if (captured.length > 0 && inside(nx, ny) && board[ny][nx] === PLAYER) {
               for (const [cx, cy] of captured) toRemove.add(`${cx},${cy}`);
             }
           }
         }
       }
-
       if (toRemove.size === 0) break;
 
       for (const key of toRemove) {
         const [x, y] = key.split(',').map(Number);
-        board[y][x] = PLAYER; // 一瞬裏返った扱い
+        board[y][x] = PLAYER;
       }
       draw();
 
@@ -292,12 +285,15 @@
         const [x, y] = key.split(',').map(Number);
         board[y][x] = EMPTY;
       }
-
       chain++;
+      maxChain = Math.max(maxChain, chain);
+      erasedWhiteTotal += toRemove.size;
       score += toRemove.size * 100 * chain;
       scoreEl.textContent = score;
       applyGravity();
     }
+
+    if (countCells().black === COLS * ROWS) finishGame(true);
   }
 
   function applyGravity() {
@@ -316,23 +312,61 @@
     return x >= 0 && x < COLS && y >= 0 && y < ROWS;
   }
 
-  function drawCell(x, y, color, ghost = false) {
+  function countCells() {
+    let black = 0;
+    let white = 0;
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        if (board[y][x] === BLACK) black++;
+        if (board[y][x] === WHITE) white++;
+      }
+    }
+    return { black, white };
+  }
+
+  function calcFinalScore(cleared) {
+    const cells = countCells();
+    const blackBonus = cells.black * 50;
+    const whiteBonus = erasedWhiteTotal * 100;
+    const chainBonus = maxChain * 300;
+    const timePenalty = elapsedSeconds * 3;
+    const clearBonus = cleared ? 5000 : 0;
+    return Math.max(0, Math.floor(whiteBonus + blackBonus + chainBonus + clearBonus - timePenalty));
+  }
+
+  function finishGame(cleared) {
+    if (gameOver) return;
+    gameOver = true;
+    elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+    const cells = countCells();
+    const finalScore = calcFinalScore(cleared);
+    score = finalScore;
+    scoreEl.textContent = score;
+    messageEl.textContent = cleared ? 'CLEAR!' : 'GAME OVER';
+    document.getElementById('resultTitle').textContent = cleared ? 'COMPLETE!' : 'GAME OVER';
+    document.getElementById('resultScore').textContent = finalScore.toLocaleString();
+    document.getElementById('resultBlack').textContent = `${cells.black}/${COLS * ROWS}`;
+    document.getElementById('resultWhite').textContent = erasedWhiteTotal;
+    document.getElementById('resultChain').textContent = maxChain;
+    document.getElementById('resultTime').textContent = `${elapsedSeconds}秒`;
+    document.getElementById('resultNote').innerHTML = cleared
+      ? '盤面制圧成功！スクショしてSNSに投稿できます。<br>#OthelloFallingBlocks'
+      : '黒マス数・消した白・連鎖・タイムでスコア計算。<br>#OthelloFallingBlocks';
+    resultModal.style.display = 'grid';
+  }
+
+  function drawCell(x, y, color) {
     const px = x * CELL;
     const py = y * CELL;
-
     ctx.fillStyle = '#0b6b43';
     ctx.fillRect(px, py, CELL, CELL);
     ctx.strokeStyle = 'rgba(255,255,255,.14)';
     ctx.strokeRect(px, py, CELL, CELL);
-
     if (color === EMPTY) return;
-
     ctx.beginPath();
     ctx.arc(px + CELL / 2, py + CELL / 2, CELL * 0.38, 0, Math.PI * 2);
     ctx.fillStyle = color === BLACK ? '#111827' : '#f8fafc';
-    ctx.globalAlpha = ghost ? 0.35 : 1;
     ctx.fill();
-    ctx.globalAlpha = 1;
     ctx.lineWidth = 2;
     ctx.strokeStyle = color === BLACK ? '#475569' : '#cbd5e1';
     ctx.stroke();
@@ -340,88 +374,42 @@
 
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     for (let y = 0; y < ROWS; y++) {
-      for (let x = 0; x < COLS; x++) {
-        drawCell(x, y, board[y][x]);
-      }
+      for (let x = 0; x < COLS; x++) drawCell(x, y, board[y][x]);
     }
-
     if (!gameOver && current) {
       eachAbs(current, (x, y, c) => {
         if (y >= 0) drawCell(x, y, c);
       });
-    }
-
-    if (gameOver) {
-      ctx.fillStyle = 'rgba(0,0,0,.55)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#fff';
-      ctx.textAlign = 'center';
-      ctx.font = 'bold 34px system-ui';
-      ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2);
     }
   }
 
   function update(time = 0) {
     const delta = time - lastTime;
     lastTime = time;
-
     if (!gameOver) {
+      elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
       dropTimer += delta;
       if (dropTimer > dropInterval) {
         move(0, 1);
         dropTimer = 0;
       }
     }
-
     draw();
     requestAnimationFrame(update);
   }
 
-  // ダブルタップズーム防止
-document.addEventListener('dblclick', function(e) {
-  e.preventDefault();
-}, { passive: false });
-
-// iOS用タップズーム防止
-document.addEventListener('touchend', function (event) {
-  const now = new Date().getTime();
-  if (window.lastTouchEnd && (now - window.lastTouchEnd) <= 300) {
-    event.preventDefault();
-  }
-  window.lastTouchEnd = now;
-}, false);
-
-document.addEventListener('keydown', e => {
-    const key = e.key.toLowerCase();
-    if (['arrowleft','arrowright','arrowdown','arrowup','l','r',' '].includes(key)) e.preventDefault();
-
-    if (key === 'arrowleft') move(-1, 0);
-    if (key === 'arrowright') move(1, 0);
-    if (key === 'arrowdown') move(0, 1);
-    if (key === 'arrowup' || key === ' ') hardDrop();
-    if (key === 'l') rotate(-1);
-    if (key === 'r') rotate(1);
-  });
-
-  restartBtn.addEventListener('click', reset);
-
-  reset();
-  requestAnimationFrame(update);
-
   window.control = function(type) {
-    if (type === 'left') move(-1,0);
-    if (type === 'right') move(1,0);
-    if (type === 'down') move(0,1);
+    if (type === 'left') move(-1, 0);
+    if (type === 'right') move(1, 0);
+    if (type === 'down') move(0, 1);
     if (type === 'rotL') rotate(-1);
     if (type === 'rotR') rotate(1);
-  }
+  };
 
-  // 長押し連続操作
-  const repeatableControls = new Set(['left', 'right', 'down']);
   let holdTimer = null;
   let repeatTimer = null;
+  const repeatableControls = new Set(['left', 'right', 'down']);
 
   function stopHold() {
     clearTimeout(holdTimer);
@@ -432,12 +420,10 @@ document.addEventListener('keydown', e => {
 
   document.querySelectorAll('[data-control]').forEach(btn => {
     const type = btn.dataset.control;
-
     btn.addEventListener('pointerdown', e => {
       e.preventDefault();
       btn.setPointerCapture?.(e.pointerId);
       window.control(type);
-
       stopHold();
       if (repeatableControls.has(type)) {
         holdTimer = setTimeout(() => {
@@ -445,13 +431,11 @@ document.addEventListener('keydown', e => {
         }, 220);
       }
     });
-
     btn.addEventListener('pointerup', stopHold);
     btn.addEventListener('pointercancel', stopHold);
     btn.addEventListener('pointerleave', stopHold);
   });
 
-  // スワイプ操作
   let swipeStartX = 0;
   let swipeStartY = 0;
   let swipeStartTime = 0;
@@ -464,9 +448,7 @@ document.addEventListener('keydown', e => {
     swipeStartTime = Date.now();
   }, { passive: false });
 
-  canvas.addEventListener('touchmove', e => {
-    e.preventDefault();
-  }, { passive: false });
+  canvas.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
 
   canvas.addEventListener('touchend', e => {
     e.preventDefault();
@@ -476,16 +458,29 @@ document.addEventListener('keydown', e => {
     const adx = Math.abs(dx);
     const ady = Math.abs(dy);
     const elapsed = Date.now() - swipeStartTime;
-
     if (Math.max(adx, ady) < 28 || elapsed > 800) return;
-
-    if (adx > ady) {
-      window.control(dx > 0 ? 'right' : 'left');
-    } else {
-      if (dy > 0) window.control('down');
-      else hardDrop();
-    }
+    if (adx > ady) window.control(dx > 0 ? 'right' : 'left');
+    else dy > 0 ? window.control('down') : hardDrop();
   }, { passive: false });
+
+  document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+  document.addEventListener('keydown', e => {
+    const key = e.key.toLowerCase();
+    if (['arrowleft','arrowright','arrowdown','arrowup','l','r',' '].includes(key)) e.preventDefault();
+    if (key === 'arrowleft') move(-1, 0);
+    if (key === 'arrowright') move(1, 0);
+    if (key === 'arrowdown') move(0, 1);
+    if (key === 'arrowup' || key === ' ') hardDrop();
+    if (key === 'l') rotate(-1);
+    if (key === 'r') rotate(1);
+  });
+
+  restartBtn.addEventListener('click', reset);
+  document.getElementById('closeResult').addEventListener('click', () => resultModal.style.display = 'none');
+  document.getElementById('restartResult').addEventListener('click', reset);
+
+  reset();
+  requestAnimationFrame(update);
 })();
 </script>
 </body>
