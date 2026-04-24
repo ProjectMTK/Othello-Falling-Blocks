@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>オセロ落ち物ゲーム</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at top, #264653, #111827 60%, #030712);
+      color: #f9fafb;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .wrap {
+      display: grid;
+      grid-template-columns: auto 260px;
+      gap: 24px;
+      align-items: start;
+      padding: 24px;
+    }
+    canvas {
+      background: #0f5132;
+      border: 5px solid #d1d5db;
+      border-radius: 14px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.45);
+    }
+    .panel {
+      background: rgba(17, 24, 39, .78);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.35);
+    }
+    h1 { font-size: 22px; margin: 0 0 10px; }
+    .score { font-size: 28px; font-weight: 800; margin: 10px 0 18px; }
+    .label { color: #cbd5e1; font-size: 13px; margin-top: 14px; }
+    .keys {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    kbd {
+      display: inline-block;
+      background: #f8fafc;
+      color: #111827;
+      border-radius: 7px;
+      padding: 4px 8px;
+      font-weight: 700;
+      font-size: 12px;
+      text-align: center;
+    }
+    button {
+      width: 100%;
+      margin-top: 18px;
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-weight: 800;
+      cursor: pointer;
+      background: #facc15;
+      color: #111827;
+    }
+    .small { color: #cbd5e1; font-size: 13px; line-height: 1.65; }
+    .gameover {
+      color: #fecaca;
+      font-weight: 800;
+      min-height: 24px;
+      margin-top: 12px;
+    }
+    @media (max-width: 760px) {
+      .wrap { grid-template-columns: 1fr; }
+      canvas { width: 100%; height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <canvas id="game" width="360" height="600"></canvas>
+    <aside class="panel">
+      <h1>オセロ落ち物ゲーム</h1>
+      <div class="label">SCORE</div>
+      <div class="score" id="score">0</div>
+      <div class="label">操作</div>
+      <div class="keys">
+        <kbd>← →</kbd><span>移動</span>
+        <kbd>↓</kbd><span>高速落下</span>
+        <kbd>↑</kbd><span>即落下</span>
+        <kbd>L</kbd><span>左回転</span>
+        <kbd>R</kbd><span>右回転</span>
+      </div>
+      <button id="restart">リスタート</button>
+      <div class="gameover" id="message"></div>
+      <p class="small">
+        黒がプレイヤー色です。ブロック固定後、黒で白を縦・横・斜めに挟むと、白が裏返ってから消えます。消えた空間には上の石が落下します。
+      </p>
+    </aside>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const scoreEl = document.getElementById('score');
+  const messageEl = document.getElementById('message');
+  const restartBtn = document.getElementById('restart');
+
+  const COLS = 10;
+  const ROWS = 20;
+  const CELL = 30;
+  const EMPTY = 0;
+  const BLACK = 1;
+  const WHITE = 2;
+  const PLAYER = BLACK;
+  const OPPONENT = WHITE;
+
+  const DIRS = [
+    [-1,-1], [0,-1], [1,-1],
+    [-1, 0],         [1, 0],
+    [-1, 1], [0, 1], [1, 1]
+  ];
+
+  const SHAPES = [
+    [[0,0],[1,0],[0,1],[1,1]],      // O
+    [[-1,0],[0,0],[1,0],[2,0]],     // I
+    [[-1,0],[0,0],[1,0],[0,1]],     // T
+    [[0,0],[1,0],[0,1],[-1,1]],     // S
+    [[-1,0],[0,0],[0,1],[1,1]],     // Z
+    [[-1,0],[0,0],[1,0],[-1,1]],    // L
+    [[-1,0],[0,0],[1,0],[1,1]]      // J
+  ];
+
+  let board, current, score, gameOver, dropTimer, dropInterval, lastTime;
+
+  function reset() {
+    board = Array.from({ length: ROWS }, () => Array(COLS).fill(EMPTY));
+    score = 0;
+    gameOver = false;
+    dropTimer = 0;
+    dropInterval = 650;
+    lastTime = 0;
+    scoreEl.textContent = score;
+    messageEl.textContent = '';
+    spawnPiece();
+  }
+
+  function randomColor() {
+    return Math.random() < 0.48 ? BLACK : WHITE;
+  }
+
+  function spawnPiece() {
+    const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+    const cells = shape.map(([x, y]) => ({ x, y, c: randomColor() }));
+
+    // 最低1個は黒、1個は白を含める
+    if (!cells.some(v => v.c === BLACK)) cells[0].c = BLACK;
+    if (!cells.some(v => v.c === WHITE)) cells[cells.length - 1].c = WHITE;
+
+    current = {
+      x: Math.floor(COLS / 2),
+      y: 1,
+      cells
+    };
+
+    if (collides(current)) {
+      gameOver = true;
+      messageEl.textContent = 'GAME OVER';
+    }
+  }
+
+  function eachAbs(piece, fn) {
+    for (const cell of piece.cells) fn(piece.x + cell.x, piece.y + cell.y, cell.c);
+  }
+
+  function collides(piece) {
+    let hit = false;
+    eachAbs(piece, (x, y) => {
+      if (x < 0 || x >= COLS || y >= ROWS) hit = true;
+      if (y >= 0 && board[y]?.[x] !== EMPTY) hit = true;
+    });
+    return hit;
+  }
+
+  function move(dx, dy) {
+    if (gameOver) return false;
+    const next = { ...current, x: current.x + dx, y: current.y + dy };
+    if (!collides(next)) {
+      current = next;
+      return true;
+    }
+    if (dy > 0) lockPiece();
+    return false;
+  }
+
+  function rotate(dir) {
+    if (gameOver) return;
+    const rotated = current.cells.map(cell => {
+      return dir > 0
+        ? { x: -cell.y, y: cell.x, c: cell.c }
+        : { x: cell.y, y: -cell.x, c: cell.c };
+    });
+
+    const kicks = [0, -1, 1, -2, 2];
+    for (const k of kicks) {
+      const next = { ...current, x: current.x + k, cells: rotated };
+      if (!collides(next)) {
+        current = next;
+        return;
+      }
+    }
+  }
+
+  function hardDrop() {
+    if (gameOver) return;
+    while (move(0, 1)) {}
+  }
+
+  function lockPiece() {
+    eachAbs(current, (x, y, c) => {
+      if (y >= 0 && y < ROWS && x >= 0 && x < COLS) board[y][x] = c;
+    });
+    resolveOthello();
+    applyGravity();
+    spawnPiece();
+  }
+
+  function resolveOthello() {
+    let chain = 0;
+
+    while (true) {
+      const toRemove = new Set();
+
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          if (board[y][x] !== PLAYER) continue;
+
+          for (const [dx, dy] of DIRS) {
+            const captured = [];
+            let nx = x + dx;
+            let ny = y + dy;
+
+            while (inside(nx, ny) && board[ny][nx] === OPPONENT) {
+              captured.push([nx, ny]);
+              nx += dx;
+              ny += dy;
+            }
+
+            if (captured.length > 0 && inside(nx, ny) && board[ny][nx] === PLAYER) {
+              for (const [cx, cy] of captured) toRemove.add(`${cx},${cy}`);
+            }
+          }
+        }
+      }
+
+      if (toRemove.size === 0) break;
+
+      for (const key of toRemove) {
+        const [x, y] = key.split(',').map(Number);
+        board[y][x] = PLAYER; // 一瞬裏返った扱い
+      }
+      draw();
+
+      for (const key of toRemove) {
+        const [x, y] = key.split(',').map(Number);
+        board[y][x] = EMPTY;
+      }
+
+      chain++;
+      score += toRemove.size * 100 * chain;
+      scoreEl.textContent = score;
+      applyGravity();
+    }
+  }
+
+  function applyGravity() {
+    for (let x = 0; x < COLS; x++) {
+      const stack = [];
+      for (let y = ROWS - 1; y >= 0; y--) {
+        if (board[y][x] !== EMPTY) stack.push(board[y][x]);
+      }
+      for (let y = ROWS - 1; y >= 0; y--) {
+        board[y][x] = stack[ROWS - 1 - y] ?? EMPTY;
+      }
+    }
+  }
+
+  function inside(x, y) {
+    return x >= 0 && x < COLS && y >= 0 && y < ROWS;
+  }
+
+  function drawCell(x, y, color, ghost = false) {
+    const px = x * CELL;
+    const py = y * CELL;
+
+    ctx.fillStyle = '#0b6b43';
+    ctx.fillRect(px, py, CELL, CELL);
+    ctx.strokeStyle = 'rgba(255,255,255,.14)';
+    ctx.strokeRect(px, py, CELL, CELL);
+
+    if (color === EMPTY) return;
+
+    ctx.beginPath();
+    ctx.arc(px + CELL / 2, py + CELL / 2, CELL * 0.38, 0, Math.PI * 2);
+    ctx.fillStyle = color === BLACK ? '#111827' : '#f8fafc';
+    ctx.globalAlpha = ghost ? 0.35 : 1;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = color === BLACK ? '#475569' : '#cbd5e1';
+    ctx.stroke();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        drawCell(x, y, board[y][x]);
+      }
+    }
+
+    if (!gameOver && current) {
+      eachAbs(current, (x, y, c) => {
+        if (y >= 0) drawCell(x, y, c);
+      });
+    }
+
+    if (gameOver) {
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 34px system-ui';
+      ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2);
+    }
+  }
+
+  function update(time = 0) {
+    const delta = time - lastTime;
+    lastTime = time;
+
+    if (!gameOver) {
+      dropTimer += delta;
+      if (dropTimer > dropInterval) {
+        move(0, 1);
+        dropTimer = 0;
+      }
+    }
+
+    draw();
+    requestAnimationFrame(update);
+  }
+
+  document.addEventListener('keydown', e => {
+    const key = e.key.toLowerCase();
+    if (['arrowleft','arrowright','arrowdown','arrowup','l','r',' '].includes(key)) e.preventDefault();
+
+    if (key === 'arrowleft') move(-1, 0);
+    if (key === 'arrowright') move(1, 0);
+    if (key === 'arrowdown') move(0, 1);
+    if (key === 'arrowup' || key === ' ') hardDrop();
+    if (key === 'l') rotate(-1);
+    if (key === 'r') rotate(1);
+  });
+
+  restartBtn.addEventListener('click', reset);
+
+  reset();
+  requestAnimationFrame(update);
+})();
+</script>
+</body>
+</html>
