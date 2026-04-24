@@ -7,6 +7,7 @@
   <style>
     * { box-sizing: border-box; }
     body {
+      touch-action: manipulation;
       margin: 0;
       min-height: 100vh;
       display: grid;
@@ -29,6 +30,7 @@
       border-radius: 14px;
       box-shadow: 0 24px 60px rgba(0,0,0,.45);
       display: block;
+      touch-action: none;
     }
     .panel {
       background: rgba(17, 24, 39, .78);
@@ -66,6 +68,15 @@
       cursor: pointer;
       background: #facc15;
       color: #111827;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .touch-controls button {
+      margin-top: 0;
+      min-height: 54px;
+      font-size: 24px;
     }
     .small { color: #cbd5e1; font-size: 13px; line-height: 1.65; }
     .gameover {
@@ -83,15 +94,15 @@
 <body>
   <div class="wrap">
     <canvas id="game" width="360" height="600"></canvas>
-    <div style="width:360px;max-width:100%;">
+    <div class="touch-controls" style="width:360px;max-width:100%;">
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
-        <button onclick="control('left')">←</button>
-        <button onclick="control('down')">↓</button>
-        <button onclick="control('right')">→</button>
+        <button data-control="left">←</button>
+        <button data-control="down">↓</button>
+        <button data-control="right">→</button>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-        <button onclick="control('rotL')">⟲</button>
-        <button onclick="control('rotR')">⟳</button>
+        <button data-control="rotL">⟲</button>
+        <button data-control="rotR">⟳</button>
       </div>
     </div>
     <aside class="panel">
@@ -368,7 +379,21 @@
     requestAnimationFrame(update);
   }
 
-  document.addEventListener('keydown', e => {
+  // ダブルタップズーム防止
+document.addEventListener('dblclick', function(e) {
+  e.preventDefault();
+}, { passive: false });
+
+// iOS用タップズーム防止
+document.addEventListener('touchend', function (event) {
+  const now = new Date().getTime();
+  if (window.lastTouchEnd && (now - window.lastTouchEnd) <= 300) {
+    event.preventDefault();
+  }
+  window.lastTouchEnd = now;
+}, false);
+
+document.addEventListener('keydown', e => {
     const key = e.key.toLowerCase();
     if (['arrowleft','arrowright','arrowdown','arrowup','l','r',' '].includes(key)) e.preventDefault();
 
@@ -392,6 +417,75 @@
     if (type === 'rotL') rotate(-1);
     if (type === 'rotR') rotate(1);
   }
+
+  // 長押し連続操作
+  const repeatableControls = new Set(['left', 'right', 'down']);
+  let holdTimer = null;
+  let repeatTimer = null;
+
+  function stopHold() {
+    clearTimeout(holdTimer);
+    clearInterval(repeatTimer);
+    holdTimer = null;
+    repeatTimer = null;
+  }
+
+  document.querySelectorAll('[data-control]').forEach(btn => {
+    const type = btn.dataset.control;
+
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      btn.setPointerCapture?.(e.pointerId);
+      window.control(type);
+
+      stopHold();
+      if (repeatableControls.has(type)) {
+        holdTimer = setTimeout(() => {
+          repeatTimer = setInterval(() => window.control(type), type === 'down' ? 55 : 90);
+        }, 220);
+      }
+    });
+
+    btn.addEventListener('pointerup', stopHold);
+    btn.addEventListener('pointercancel', stopHold);
+    btn.addEventListener('pointerleave', stopHold);
+  });
+
+  // スワイプ操作
+  let swipeStartX = 0;
+  let swipeStartY = 0;
+  let swipeStartTime = 0;
+
+  canvas.addEventListener('touchstart', e => {
+    if (!e.touches.length) return;
+    e.preventDefault();
+    swipeStartX = e.touches[0].clientX;
+    swipeStartY = e.touches[0].clientY;
+    swipeStartTime = Date.now();
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', e => {
+    e.preventDefault();
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - swipeStartX;
+    const dy = touch.clientY - swipeStartY;
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+    const elapsed = Date.now() - swipeStartTime;
+
+    if (Math.max(adx, ady) < 28 || elapsed > 800) return;
+
+    if (adx > ady) {
+      window.control(dx > 0 ? 'right' : 'left');
+    } else {
+      if (dy > 0) window.control('down');
+      else hardDrop();
+    }
+  }, { passive: false });
 })();
 </script>
 </body>
