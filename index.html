@@ -98,6 +98,16 @@
       <p class="small">
         黒がプレイヤー色です。ブロック固定後、黒で白を縦・横・斜めに挟むと、白が裏返ってから消えます。消えた空間には上の石が落下します。
       </p>
+          <div class="label">タッチ操作</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
+        <button onclick="control('left')">←</button>
+        <button onclick="control('down')">↓</button>
+        <button onclick="control('right')">→</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+        <button onclick="control('rotL')">⟲</button>
+        <button onclick="control('rotR')">⟳</button>
+      </div>
     </aside>
   </div>
 
@@ -371,6 +381,14 @@
 
   reset();
   requestAnimationFrame(update);
+
+  window.control = function(type) {
+    if (type === 'left') move(-1,0);
+    if (type === 'right') move(1,0);
+    if (type === 'down') move(0,1);
+    if (type === 'rotL') rotate(-1);
+    if (type === 'rotR') rotate(1);
+  }
 })();
 </script>
 </body>
